@@ -1,0 +1,17 @@
+/* 清除浏览器的默认白边 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 隐藏滚动条，防止画布拖拽时页面跟着滚 */
+body {
+  overflow: hidden;
+  background-color: #0b0c10; /* 设置一个基础的深色背景 */
+}
+
+/* 让画板变成块级元素，铺满屏幕 */
+canvas {
+  display: block;
+}
