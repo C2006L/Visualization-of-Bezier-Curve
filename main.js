@@ -141,31 +141,27 @@ function animate() {
 
   // 4.3 绘制星轨和动态算法辅助线 (完美融合星空)
   if (controlStars.length >= 2) {
-    // === 贝塞尔曲线：多层渲染，成为视觉主角 ===
-    // 第一层：紫色发光外轮廓（细一些）
+    // ==========================================
+    // 【关键修复 (1)】：把"激光剑"改成丝滑星尘轨
+    // ==========================================
+
+    // (1) 完整的轨迹底色 (极致瘦身与退火)
     ctx.beginPath();
     ctx.moveTo(controlStars[0].x, controlStars[0].y);
-    for (let t = 0; t <= 1; t += 0.01) {
+    for (let t = 0; t <= 1; t += 0.005) {
       let p = getBezierPoint(controlStars, t);
       ctx.lineTo(p.x, p.y);
     }
-    ctx.strokeStyle = "rgba(196, 113, 237, 0.4)";
-    ctx.lineWidth = 4;
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = "rgba(196, 113, 237, 0.5)";
+
+    // 核心微调：使用深空紫作为阴影，大幅降低模糊半径
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = "rgba(196, 113, 237, 0.6)";
+
+    // 核心瘦身：使用极其细腻的 1 像素核心线
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1;
     ctx.stroke();
     ctx.shadowBlur = 0;
-
-    // 第二层：实心白色核心（更细）
-    ctx.beginPath();
-    ctx.moveTo(controlStars[0].x, controlStars[0].y);
-    for (let t = 0; t <= 1; t += 0.01) {
-      let p = getBezierPoint(controlStars, t);
-      ctx.lineTo(p.x, p.y);
-    }
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
 
     // 第三层：飞船附近增强亮度
     let breathPhase = Math.sin(Date.now() * 0.002) * 0.15;
@@ -432,7 +428,19 @@ animate();
 // 6. UI 控制面板交互
 // ==========================================
 document.getElementById("clearBtn").addEventListener("click", function () {
-  controlStars = []; // 一键清空数组，宇宙归零
+  controlStars.forEach((star) => {
+    for (let p = 0; p < 40; p++) {
+      explosions.push({
+        x: star.x,
+        y: star.y,
+        vx: (Math.random() - 0.5) * 12,
+        vy: (Math.random() - 0.5) * 12,
+        life: 1.0,
+        color: Math.random() > 0.5 ? star.color : "#ffffff",
+      });
+    }
+  });
+  controlStars = [];
 });
 
 document.getElementById("toggleLines").addEventListener("change", function (e) {
