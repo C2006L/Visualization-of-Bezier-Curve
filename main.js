@@ -7,10 +7,10 @@ const ctx = canvas.getContext("2d");
 let showHelperLines = true;
 
 let controlStars = [
-  { x: 200, y: 400, radius: 8, color: "#00ffff" },
-  { x: 400, y: 150, radius: 8, color: "#00ffff" },
-  { x: 700, y: 150, radius: 8, color: "#00ffff" },
-  { x: 900, y: 400, radius: 8, color: "#00ffff" },
+  { x: 200, y: 400, radius: 5 + Math.random() * 4, color: "#00ffff" },
+  { x: 400, y: 150, radius: 5 + Math.random() * 4, color: "#00ffff" },
+  { x: 700, y: 150, radius: 5 + Math.random() * 4, color: "#00ffff" },
+  { x: 900, y: 400, radius: 5 + Math.random() * 4, color: "#00ffff" },
 ];
 
 let backgroundStars = [];
@@ -28,6 +28,7 @@ let explosions = [];
 
 // 【新增】：全局动画参数 t，用于驱动几何辅助线的运动
 let globalT = 0;
+let trailPoints = [];
 
 // ==========================================
 // 2. 核心数学：获取最终星轨坐标 (用于画那条固定的轨迹线)
@@ -140,50 +141,143 @@ function animate() {
 
   // 4.3 绘制星轨和动态算法辅助线 (完美融合星空)
   if (controlStars.length >= 2) {
-    // (1) 完整的紫粉色星轨轨迹底色
+    // === 贝塞尔曲线：多层渲染，成为视觉主角 ===
+    // 第一层：紫色发光外轮廓（细一些）
     ctx.beginPath();
     ctx.moveTo(controlStars[0].x, controlStars[0].y);
-    for (let t = 0; t <= 1; t += 0.005) {
+    for (let t = 0; t <= 1; t += 0.01) {
       let p = getBezierPoint(controlStars, t);
       ctx.lineTo(p.x, p.y);
     }
-    ctx.strokeStyle = "rgba(196, 113, 237, 0.5)";
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(196, 113, 237, 0.4)";
+    ctx.lineWidth = 4;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = "rgba(196, 113, 237, 0.5)";
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // 第二层：实心白色核心（更细）
+    ctx.beginPath();
+    ctx.moveTo(controlStars[0].x, controlStars[0].y);
+    for (let t = 0; t <= 1; t += 0.01) {
+      let p = getBezierPoint(controlStars, t);
+      ctx.lineTo(p.x, p.y);
+    }
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+    ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // (2) 获取当前时间 t 下的算法金字塔
+    // 第三层：飞船附近增强亮度
+    let breathPhase = Math.sin(Date.now() * 0.002) * 0.15;
+    for (let t = 0; t <= 1; t += 0.008) {
+      let p = getBezierPoint(controlStars, t);
+      let distToShip = Math.abs(t - globalT);
+      if (distToShip < 0.12) {
+        let proximityBoost = Math.pow(1 - distToShip / 0.12, 2);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2.5 + proximityBoost * 2, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.4 + proximityBoost * 0.5})`;
+        ctx.shadowBlur = 8 + proximityBoost * 12;
+        ctx.shadowColor = `rgba(196, 113, 237, ${proximityBoost * 0.7})`;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // === 尾迹残影 ===
+    for (let i = trailPoints.length - 1; i >= 0; i--) {
+      let tp = trailPoints[i];
+      ctx.beginPath();
+      ctx.arc(tp.x, tp.y, tp.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(196, 113, 237, ${tp.alpha * 0.6})`;
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = `rgba(196, 113, 237, ${tp.alpha * 0.4})`;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      tp.alpha -= 0.015;
+      tp.r *= 0.96;
+      if (tp.alpha <= 0.02) trailPoints.splice(i, 1);
+    }
+
     let pyramid = getDeCasteljauPyramid(controlStars, globalT);
 
+    // === 辅助线：根据层级动态分配样式 ===
     if (showHelperLines) {
-      for (let k = 0; k < pyramid.length - 1; k++) {
+      let totalLayers = pyramid.length - 1;
+      for (let k = 0; k < totalLayers; k++) {
         let layerPoints = pyramid[k];
+        let layerDepth = k / totalLayers; // 0~1，越深越大
 
-        ctx.beginPath();
-        ctx.moveTo(layerPoints[0].x, layerPoints[0].y);
-        for (let i = 1; i < layerPoints.length; i++) {
-          ctx.lineTo(layerPoints[i].x, layerPoints[i].y);
+        // Level 1（最外层，k=0）：极细实线
+        if (k === 0) {
+          ctx.beginPath();
+          ctx.moveTo(layerPoints[0].x, layerPoints[0].y);
+          for (let i = 1; i < layerPoints.length; i++) {
+            ctx.lineTo(layerPoints[i].x, layerPoints[i].y);
+          }
+          ctx.strokeStyle = `rgba(150, 170, 210, 0.08)`;
+          ctx.lineWidth = 0.5;
+          ctx.setLineDash([]);
+          ctx.stroke();
+        }
+        // 中间层：虚线，透明度随层级提高
+        else {
+          ctx.beginPath();
+          ctx.moveTo(layerPoints[0].x, layerPoints[0].y);
+          for (let i = 1; i < layerPoints.length; i++) {
+            ctx.lineTo(layerPoints[i].x, layerPoints[i].y);
+          }
+          let alpha = 0.1 + layerDepth * 0.25;
+          ctx.strokeStyle = `rgba(150, 170, 210, ${alpha})`;
+          ctx.lineWidth = 1 + layerDepth * 0.5;
+          ctx.setLineDash([4, 6]);
+          ctx.stroke();
+          ctx.setLineDash([]);
         }
 
-        let alpha = Math.max(0.2 - k * 0.04, 0.02);
-        ctx.strokeStyle = `rgba(150, 220, 255, ${alpha})`;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 6]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
+        // 插值点：亮度随层级加深提高
         layerPoints.forEach((pt) => {
+          let pointAlpha = 0.15 + layerDepth * 0.6;
+          let pointSize = 1 + layerDepth * 2;
           ctx.beginPath();
-          ctx.arc(pt.x, pt.y, 1.5, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(200, 240, 255, ${alpha + 0.2})`;
-          ctx.shadowBlur = 5;
-          ctx.shadowColor = "#00ffff";
+          ctx.arc(pt.x, pt.y, pointSize, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(180, 200, 240, ${pointAlpha})`;
+          ctx.shadowBlur = 3 + layerDepth * 8;
+          ctx.shadowColor = `rgba(150, 170, 210, ${pointAlpha * 0.5})`;
           ctx.fill();
           ctx.shadowBlur = 0;
         });
       }
+
+      // 最顶端的最终点：全屏最亮
+      let finalPoint = pyramid[pyramid.length - 1][0];
+      ctx.beginPath();
+      ctx.arc(finalPoint.x, finalPoint.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = "rgba(196, 113, 237, 0.8)";
+      ctx.fill();
+      ctx.shadowBlur = 0;
     }
     // (4) 【终极美学】：多层叠加渲染的"神话星舟"
     let finalPoint = pyramid[pyramid.length - 1][0];
+
+    trailPoints.push({
+      x: finalPoint.x,
+      y: finalPoint.y,
+      r: 2.5 + Math.random() * 1.5,
+      alpha: 0.45,
+    });
+
+    for (let i = 0; i < 3; i++) {
+      trailPoints.push({
+        x: finalPoint.x + (Math.random() - 0.5) * 8,
+        y: finalPoint.y + (Math.random() - 0.5) * 8,
+        r: 1 + Math.random() * 0.8,
+        alpha: 0.25 + Math.random() * 0.15,
+      });
+    }
 
     let nextT = Math.min(globalT + 0.001, 1);
     let nextPoint = getBezierPoint(controlStars, nextT);
@@ -234,8 +328,11 @@ function animate() {
 
     ctx.restore();
 
-    globalT += 0.003;
+    let speedFactor = 0.002 + Math.sin(globalT * Math.PI) * 0.002;
+    globalT += speedFactor;
     if (globalT > 1) globalT = 0;
+
+    document.getElementById("tValue").textContent = globalT.toFixed(3);
   } else if (controlStars.length === 1) {
     ctx.beginPath();
     ctx.arc(controlStars[0].x, controlStars[0].y, 6, 0, Math.PI * 2);
@@ -243,13 +340,17 @@ function animate() {
     ctx.fill();
   }
 
-  // 4.4 画主控制星星
+  if (controlStars.length < 2) {
+    document.getElementById("tValue").textContent = "—";
+  }
+
+  // 4.4 画主控制星星（恒星发光）
   controlStars.forEach((star) => {
     ctx.beginPath();
     ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = star.color;
-    ctx.fillStyle = "#ffffff";
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = "rgba(0, 255, 255, 0.6)";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
     ctx.fill();
     ctx.shadowBlur = 0;
   });
@@ -300,7 +401,7 @@ canvas.addEventListener("dblclick", function (event) {
   controlStars.push({
     x: event.clientX - rect.left,
     y: event.clientY - rect.top,
-    radius: 8,
+    radius: 5 + Math.random() * 4,
     color: "#00ffff",
   });
 });

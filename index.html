@@ -10,25 +10,22 @@
     <canvas id="galaxyCanvas"></canvas>
 
     <div id="controlPanel" class="glass-panel">
-      <h3 class="panel-title">✨ 星轨控制终端</h3>
-
-      <div class="control-group">
+      <div class="control-row">
         <label class="toggle-label">
           <input type="checkbox" id="toggleLines" checked />
-          <span class="toggle-text">显示引力辅助线</span>
+          <span class="toggle-text">gravity field （重力场辅助线）</span>
         </label>
+        <button id="clearBtn" class="action-btn">reset（重置所有星体）</button>
+        <span class="status-display"
+          >t = <span class="param" id="tValue">0.000</span></span
+        >
       </div>
+    </div>
 
-      <div class="control-group">
-        <button id="clearBtn" class="action-btn">清空宇宙</button>
-      </div>
-
-      <div class="tips">
-        <p>操作指南：</p>
-        <p>· 双击空白处：生成新恒星</p>
-        <p>· 拖拽恒星：改变引力轨道</p>
-        <p>· Shift + 点击：引爆恒星</p>
-      </div>
+    <div class="tips">
+      <p>double-click · 创造星体</p>
+      <p>drag · 重塑星轨</p>
+      <p>shift + click · 恒星爆炸</p>
     </div>
 
     <script src="main.js"></script>
