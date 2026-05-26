@@ -9,6 +9,28 @@
   <body>
     <canvas id="galaxyCanvas"></canvas>
 
+    <div id="controlPanel" class="glass-panel">
+      <h3 class="panel-title">✨ 星轨控制终端</h3>
+
+      <div class="control-group">
+        <label class="toggle-label">
+          <input type="checkbox" id="toggleLines" checked />
+          <span class="toggle-text">显示引力辅助线</span>
+        </label>
+      </div>
+
+      <div class="control-group">
+        <button id="clearBtn" class="action-btn">清空宇宙</button>
+      </div>
+
+      <div class="tips">
+        <p>操作指南：</p>
+        <p>· 双击空白处：生成新恒星</p>
+        <p>· 拖拽恒星：改变引力轨道</p>
+        <p>· Shift + 点击：引爆恒星</p>
+      </div>
+    </div>
+
     <script src="main.js"></script>
   </body>
 </html>
